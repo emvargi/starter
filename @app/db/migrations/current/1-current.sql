@@ -58,6 +58,50 @@ relevant operations on them. The tables will appear when you uncomment the
 
 */
 
+-- ***** BEGIN EXERCISE MODS ***** --
+
+drop table if exists app_public.tasks cascade;
+drop index if exists tasks_by_created_at;
+drop type if exists app_public.status;
+
+create type app_public.status AS ENUM ('TO_DO', 'IN_PROGRESS', 'DONE');
+
+create table app_public.tasks (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  description text,
+  status app_public.status not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+grant
+  select,
+  insert (title, description, status),
+  update (title, description, status),
+  delete
+on app_public.tasks to :DATABASE_VISITOR;
+
+create index tasks_by_created_at on app_public.tasks(created_at);
+
+-- Keep created_at and updated_at up to date.
+create trigger _100_timestamps
+  before insert or update on app_public.tasks
+                                      for each row
+                                      execute procedure app_private.tg__timestamps();
+
+-- TODO Obviously not a secure idea but useful for UI prototyping:
+drop function if exists app_public.reset_tasks();
+create function app_public.reset_tasks()
+returns VOID AS $$
+begin
+truncate table app_public.tasks;
+return;
+end;
+$$ LANGUAGE plpgsql STRICT VOLATILE security definer set search_path to pg_catalog, public, pg_temp;
+
+-- ***** END EXERCISE MODS ***** --
+
 -- drop table if exists app_public.user_feed_posts;
 -- drop table if exists app_public.posts;
 -- drop table if exists app_public.topics;

@@ -1,0 +1,24 @@
+.task-table {
+  border: 4px solid purple;
+}
+
+.sub-layout {
+  width: 100%;
+  padding: 24px 0;
+}
+
+.header {
+  padding: 8px 12px;
+}
+.flex {
+  display: flex;
+}
+
+.flex-left{
+  flex: 0 1 auto;
+}
+
+.flex-right {
+  flex: 0 1 auto;
+  margin-left: auto;
+}

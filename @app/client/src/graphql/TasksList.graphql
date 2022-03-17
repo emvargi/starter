@@ -1,0 +1,20 @@
+query TasksList {
+...SharedLayout_Query
+  tasks(orderBy: CREATED_AT_ASC) {
+    pageInfo {
+      endCursor
+      hasNextPage
+      hasPreviousPage
+      startCursor
+    }
+    nodes {
+      createdAt
+      description
+      id
+      status
+      title
+      updatedAt
+    }
+    totalCount
+  }
+}

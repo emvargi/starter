@@ -1,0 +1,300 @@
+import { DownOutlined } from '@ant-design/icons';
+import {ApolloError} from "@apollo/client";
+import { SharedLayout } from "@app/components";
+import {
+  Status,
+  TasksListDocument,
+  TasksListQuery,
+  useAddFakeTasksMutation,
+  useAddTaskMutation,
+  useDeleteAllTasksMutation,
+  useTasksListQuery,
+  useUpdateTaskStatusMutation
+} from "@app/graphql/index";
+import {extractError, formItemLayout, getCodeFromError, tailFormItemLayout} from "@app/lib";
+import {Alert, Button, Col, Dropdown,Form, Input, Menu, Modal, Row, Table } from 'antd';
+import {useForm} from "antd/lib/form/Form";
+import { NextPage } from "next";
+import {Store} from "rc-field-form/lib/interface";
+import * as React from "react";
+
+import styles from './index.module.css';
+
+type StatusChangeHandler = (id: string, status: Status) => void
+const StatusDisplayName = new Map<string, string>([
+  [Status.ToDo, 'To Do'],
+  [Status.InProgress, 'In Progress'],
+  [Status.Done, 'Done'],
+]);
+const menu = (row: any, clickHandler: StatusChangeHandler) => (
+  <Menu>
+    {
+      Array.from(StatusDisplayName.keys()).map((s) =>
+        <Menu.Item
+          key={ s }
+          onClick={ () => clickHandler(row.id, (s as Status)) }
+          disabled={ (s as Status) === row.status ? true : undefined }
+        >
+          { StatusDisplayName.get(s) }
+        </Menu.Item>
+      )
+    }
+  </Menu>
+);
+
+
+
+const columns = (changeStatus: StatusChangeHandler) => [
+  {
+    title: 'Title',
+    dataIndex: 'title',
+    key: 'title',
+  },
+  {
+    title: 'Status',
+    dataIndex: 'status',
+    key: 'status',
+    render: function renderStatus(text: string, row: any) {
+      return <Dropdown overlay={menu(row, changeStatus)}>
+        <a className="ant-dropdown-link" onClick={e => e.preventDefault()}>
+          {StatusDisplayName.get(text)}<DownOutlined />
+        </a>
+      </Dropdown>;
+    }
+  },
+  {
+    title: 'Description',
+    dataIndex: 'description',
+    key: 'description',
+  },
+];
+
+
+const Home: NextPage = () => {
+  let query = useTasksListQuery();
+  const tasks = query.data?.tasks?.nodes || [];
+  const [formError, setFormError] = React.useState<Error | ApolloError | null>(null);
+  const [isModalVisible, setIsModalVisible] = React.useState(false);
+
+  const [deleteAllTasks] = useDeleteAllTasksMutation();
+  const handleDeleteAllTasks = async () => {
+    await deleteAllTasks()
+    query.refetch();  // TODO useMutation refetch
+  }
+
+  const [addFakeTasks] = useAddFakeTasksMutation();
+  const handleAddFakeTasks = async () => {
+    await addFakeTasks()
+    query.refetch();  // TODO useMutation refetch
+  }
+
+  const [changeStatusError, setChangeStatusError] = React.useState<Error | ApolloError | null>(null);
+  const [updateTaskStatus] = useUpdateTaskStatusMutation();
+  const handleChangeStatus = React.useCallback(
+    async (id: string, status: Status) => {
+      try {
+        setChangeStatusError(null);
+        const answer = await updateTaskStatus({ variables: {id: id, status: status} });
+        console.warn('Update STATUS Answer: %O', answer, changeStatusError);
+      } catch (e) {
+        setChangeStatusError(e);
+      }
+    },
+    [updateTaskStatus, changeStatusError, setChangeStatusError]
+  );
+
+  const devMenu = (
+    <Menu>
+      <Menu.Item onClick={handleAddFakeTasks}>
+        Create 10 Tasks
+      </Menu.Item>
+      <Menu.Item danger onClick={handleDeleteAllTasks}>
+        Delete all tasks
+      </Menu.Item>
+    </Menu>
+  )
+
+  return (
+    <SharedLayout title="Task App" query={query} noPad={true}>
+      <Row className='sub-layout'>
+
+        <Col span={2}>
+        </Col>
+
+        <Col span={20}>
+          <div className={'flex header'}>
+            <div className={'flex flex-left'}>
+
+              <Dropdown overlay={devMenu}>
+                <a className="ant-dropdown-link" onClick={e => e.preventDefault()}>
+                  Dev/Test Options <DownOutlined />
+                </a>
+              </Dropdown>
+
+
+            </div>
+            <div className={'flex flex-right'}>
+              <Button type="primary" onClick={() => { setIsModalVisible(true) }}>
+                Create Task
+              </Button>
+            </div>
+          </div>
+          <TaskList tasks={tasks} changeStatus={handleChangeStatus} />
+        </Col>
+
+        <Col span={2}>
+        </Col>
+      </Row>
+
+      <Modal
+        title="Modal Title"
+        visible={isModalVisible}
+        onOk={() => setIsModalVisible(false)}
+        onCancel={() => setIsModalVisible(false)}
+      >
+        <div>
+          <TaskForm
+            onComplete={() => setIsModalVisible(false)} // setShowAddEmailForm(false)}
+            error={formError}
+            setError={setFormError}
+          />
+        </div>
+      </Modal>
+
+    </SharedLayout>
+  );
+};
+
+export default Home;
+
+type TaskListProps = {
+  tasks: any;
+  changeStatus: StatusChangeHandler;
+}
+
+// table
+// const rowExpandRenderer = (row: any) => <p style={{ margin: 0 }}>{row.description}</p>;
+
+function TaskList({ tasks, changeStatus }: TaskListProps) {
+  return (
+  <Table
+    className={styles.taskTable}
+    dataSource={tasks}
+    columns={columns(changeStatus)}
+    rowKey="id"
+    pagination={false}
+    // pagination={{ disabled: true, pageSize: 25 }}
+    scroll={{ y: 600 }}
+    // expandable={{
+    //   expandedRowRender: rowExpandRenderer,
+    //   rowExpandable: row => !!row,
+    // }}
+  ></Table>
+  );
+}
+
+type TaskFormProps = {
+  onComplete: () => void;
+  error: Error | ApolloError | null;
+  setError: (error: Error | ApolloError | null) => void;
+}
+
+function TaskForm({ error, setError, onComplete }: TaskFormProps) {
+  const [form] = useForm();
+  const [addTask] = useAddTaskMutation();
+  const handleSubmit = React.useCallback(
+    async (values: Store) => {
+      try {
+        setError(null);
+        const answer = await addTask({
+            variables: {title: values.title, description: values.description},
+            update(
+              cache,
+              {data}
+            ) {
+              const newTask = data?.createTask?.task;
+              const existingTasks = cache.readQuery<TasksListQuery>({
+                query: TasksListDocument,
+              });
+              if (newTask && existingTasks) {
+                cache.writeQuery({
+                  query: TasksListDocument,
+                  data: {
+                    ...existingTasks,
+                    tasks: {
+                      ...existingTasks.tasks,
+                      nodes: [
+                        ...existingTasks?.tasks?.nodes || [],
+                        newTask,
+                      ],
+                    }
+                  },
+                });
+              }
+            }
+          });
+        console.warn('ADD Task Answer: %O', answer);
+        onComplete();
+      } catch (e) {
+        setError(e);
+      }
+    },
+    [addTask, onComplete, setError]
+  );
+  const code = getCodeFromError(error);
+  return (
+    <Form {...formItemLayout} form={form} onFinish={handleSubmit}>
+      <Form.Item
+        label="Title"
+        name="title"
+        rules={[
+          {
+            required: true,
+            message: "Please enter a title",
+          },
+        ]}
+      >
+        <Input data-cy="addtask-input-title" />
+      </Form.Item>
+
+        <Form.Item
+          label="Description"
+          name="description"
+          rules={[
+            {
+              required: true,
+              message: "Please enter a description",
+            },
+          ]}
+        >
+
+        <Input data-cy="addtask-input-description" />
+      </Form.Item>
+      {error ? (
+        <Form.Item>
+          <Alert
+            type="error"
+            message={`Error adding email`}
+            description={
+              <span>
+                {extractError(error).message}
+                {code ? (
+                  <span>
+                    {" "}
+                    (Error code: <code>ERR_{code}</code>)
+                  </span>
+                ) : null}
+              </span>
+            }
+          />
+        </Form.Item>
+      ) : null}
+      <Form.Item {...tailFormItemLayout}>
+        <Button htmlType="submit" data-cy="addtask-button-submit">
+          Add Task
+        </Button>
+      </Form.Item>
+    </Form>
+  );
+}
+

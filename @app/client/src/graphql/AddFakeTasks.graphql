@@ -1,0 +1,52 @@
+mutation AddFakeTasks {
+  create1: createTask(input: {
+      task: {status: TO_DO, title: "Review PO spec", description: "Break out key features into stories"
+    }}) {
+    task { id }
+  }
+  create2: createTask(input: {
+    task: {status: TO_DO, title: "Evaluate tech feasibility", description: "Are there any blockers or obvious implementation concerns?"
+    }}) {
+    task { id }
+  }
+  create3: createTask(input: {
+    task: {status: TO_DO, title: "Task out stories", description: "Create B/E & F/E sub-tasks"
+    }}) {
+    task { id }
+  }
+  create4: createTask(input: {
+    task: {status: TO_DO, title: "Estimate tasks", description: "Assign story points to each story"
+    }}) {
+    task { id }
+  }
+  create5: createTask(input: {
+    task: {status: TO_DO, title: "Overall estimation", description: "Roll up per-story estimates and identify overall effort"
+    }}) {
+    task { id }
+  }
+  create6: createTask(input: {
+    task: {status: TO_DO, title: "Prioritize feature", description: "What's the timeline?"
+    }}) {
+    task { id }
+  }
+  create7: createTask(input: {
+    task: {status: TO_DO, title: "Identify priority deliverables", description: "Define the high-value deliverables for early iterations"
+    }}) {
+    task { id }
+  }
+  create8: createTask(input: {
+    task: {status: TO_DO, title: "Schedule developer overview", description: "Ensure the team understands the reqs and the business value"
+    }}) {
+    task { id }
+  }
+  create9: createTask(input: {
+    task: {status: TO_DO, title: "Get to work", description: "Move the stories into sprint"
+    }}) {
+    task { id }
+  }
+  create10: createTask(input: {
+    task: {status: TO_DO, title: "Iterate, iterate, iterate", description: "The first draft is just that"
+    }}) {
+    task { id }
+  }
+}

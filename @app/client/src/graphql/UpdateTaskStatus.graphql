@@ -1,0 +1,13 @@
+
+mutation UpdateTaskStatus($id: UUID!, $status: Status!) {
+  updateTask(input: {patch: {status: $status}, id: $id}) {
+    task {
+      createdAt
+      description
+      id
+      status
+      title
+      updatedAt
+    }
+  }
+}

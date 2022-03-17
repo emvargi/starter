@@ -1,0 +1,6 @@
+
+mutation DeleteAllTasks($mutationId: String) {
+  resetTasks(input: {clientMutationId: $mutationId}) {
+    clientMutationId
+  }
+}
